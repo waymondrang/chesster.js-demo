@@ -1,0 +1,31 @@
+name: build and check
+
+on:
+    push:
+        # run on all branches
+
+jobs:
+    test-build:
+        runs-on: ubuntu-latest
+        steps:
+            - name: checkout repository
+              uses: actions/checkout@v5
+
+            - name: setup node
+              uses: actions/setup-node@v5
+              with:
+                  node-version: 24
+
+            - name: print versions
+              run: |
+                  node -v
+                  npm -v
+
+            - name: install dependencies
+              run: npm ci
+
+            - name: build project
+              run: npm run build
+
+            - name: run checks
+              run: npm run check
