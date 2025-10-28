@@ -1,12 +1,19 @@
-import { BLACK, WHITE, MAX_PLAYER, MIN_PLAYER, BISHOP, KNIGHT, PAWN, QUEEN, ROOK } from "./constants";
-import type { ChessterGame } from "./game";
 import {
-    BOARD_SIZE,
+    BLACK,
+    WHITE,
+    pieces,
     moveTypes,
-    type pieces,
-    type ChessterMove,
-    type messageTypes,
-} from "./types";
+    BOARD_SIZE,
+    Chesster as ChessterGame,
+} from "chesster.js";
+import { messageTypes } from "./constants";
+
+const { BISHOP, KNIGHT, PAWN, QUEEN, ROOK } = pieces;
+
+const MAX_PLAYER = 0;
+const MIN_PLAYER = 1;
+
+type ChessterMove = number;
 
 const mobilityWeight = 1; // used in calculateAbsolute
 const pieceValueWeight = 1; // used in calculateRelative
@@ -1167,7 +1174,7 @@ const mobilityBonus: number[][][] = [
 ];
 
 export class ChessterAI {
-    game: Game;
+    game: ChessterGame;
     team: number;
 
     //////////////////////////////////
@@ -1313,21 +1320,23 @@ export class ChessterAI {
      * @returns score
      */
     calculateAbsolute(depth: number): number {
-        if (this.game.wcm)
+        if (this.game.white.isCheckmated)
             return (
                 (this.game.turn === this.team ? -1 : 1) *
                 (checkmateWeight + depth)
             ); // reward sooner checkmates
-        if (this.game.bcm)
+        if (this.game.black.isCheckmated)
             return (
                 (this.game.turn === this.team ? -1 : 1) *
                 (checkmateWeight + depth)
             ); // reward sooner checkmates
-        if (this.game.stalemate || this.game.draw) return 0;
+        if (this.game.isStalemate || this.game.isDraw) return 0;
 
-        // check transposition table
-        if (this.absoluteTable.has(this.game.zobrist))
-            return this.absoluteTable.get(this.game.zobrist);
+        // todo: make zobrist accessible
+
+        // check transposition table (zobrist is private, so commenting out for now)
+        // if (this.absoluteTable.has(this.game.zobrist))
+        //     return this.absoluteTable.get(this.game.zobrist);
 
         let score = 0;
 
@@ -1347,10 +1356,12 @@ export class ChessterAI {
         score +=
             castlingRightsWeight *
             (this.team === WHITE
-                ? (this.game.wckc ? 1 : 0) + (this.game.wcqc ? 1 : 0)
-                : (this.game.bckc ? 1 : 0) + (this.game.bcqc ? 1 : 0));
+                ? (this.game.white.canCastleKingside ? 1 : 0) +
+                  (this.game.white.canCastleQueenside ? 1 : 0)
+                : (this.game.black.canCastleKingside ? 1 : 0) +
+                  (this.game.black.canCastleQueenside ? 1 : 0));
 
-        this.absoluteTable.set(this.game.zobrist, score);
+        // this.absoluteTable.set(this.game.zobrist, score);
 
         return score;
     }
@@ -1360,20 +1371,20 @@ export class ChessterAI {
      * @returns score
      */
     calculateRelative(depth: number): number {
-        if (this.game.wcm)
+        if (this.game.white.isCheckmated)
             return (
                 (this.game.turn === WHITE ? -1 : 1) * (checkmateWeight + depth)
             ); // reward sooner checkmates
-        if (this.game.bcm)
+        if (this.game.black.isCheckmated)
             return (
                 (this.game.turn === BLACK ? -1 : 1) * (checkmateWeight + depth)
             ); // reward sooner checkmates
-        if (this.game.stalemate || this.game.draw) return 0;
+        if (this.game.isStalemate || this.game.isDraw) return 0;
 
-        // check transposition table
-        if (this.relativeTable.has(this.game.zobrist)) {
-            return this.relativeTable.get(this.game.zobrist)!;
-        }
+        // check transposition table (zobrist is private, commenting out)
+        // if (this.relativeTable.has(this.game.zobrist)) {
+        //     return this.relativeTable.get(this.game.zobrist)!;
+        // }
 
         let phase = totalPhase; // the higher the phase, the closer to endgame
         let scoreMG = 0;
@@ -1412,8 +1423,8 @@ export class ChessterAI {
                     (mobilityBonusValue ? mobilityBonusValue[0] : 0) +
                     (this.game.board[i] & 0b1 ? blackPST : whitePST)[
                         (this.game.board[i] >>> 1) & 0b111
-                    ][(i >>> 3) & 0b111][i & 0b111][0] +
-                    getPawnStructureMG(this.game, i));
+                    ][(i >>> 3) & 0b111][i & 0b111][0]);
+            // + getPawnStructureMG(this.game, i)); // function not available, commenting out
 
             scoreEG +=
                 ((this.game.board[i] & 0b1) === this.game.turn ? 1 : -1) *
@@ -1428,7 +1439,7 @@ export class ChessterAI {
         phase = phase < 0 ? 0 : phase;
         score += (scoreMG * (256 - phase) + scoreEG * phase) / 256;
 
-        this.relativeTable.set(this.game.zobrist, score);
+        // this.relativeTable.set(this.game.zobrist, score);
 
         return score;
     }
@@ -1501,7 +1512,7 @@ export class ChessterAI {
                 if (this.visualizeSearch) {
                     console.log(
                         "visualizing move: " +
-                            moveToString(bestMove) +
+                            bestMove.toString(2) +
                             " with value " +
                             score
                     );
@@ -1571,7 +1582,7 @@ export class ChessterAI {
                 if (this.visualizeSearch) {
                     console.log(
                         "visualizing move: " +
-                            moveToString(bestMove) +
+                            bestMove.toString(2) +
                             " with value " +
                             score
                     );
@@ -1634,7 +1645,7 @@ export class ChessterAI {
             }
 
             return [bestMove, bestValue];
-        } else if (playerType === MIN_PLAYER) {
+        } else {
             let bestValue = Infinity;
             let bestMove: ChessterMove | undefined;
 

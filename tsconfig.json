@@ -1,9 +1,15 @@
 {
     "compilerOptions": {
-        "sourceMap": true,
-        "esModuleInterop": true,
-        "target": "ESNext",
-        "moduleResolution": "Node"
+        "outDir": "./dist/",
+        "noImplicitAny": true,
+        "module": "es6",
+        "target": "es5",
+        "jsx": "react",
+        "allowJs": true,
+        "moduleResolution": "node",
+        "lib": ["ES2015", "DOM"],
+
+        "allowSyntheticDefaultImports": true
     },
-    "include": ["./src"]
+    "include": ["src"]
 }
